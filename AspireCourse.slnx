@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/services/">
     <Project Path="QuestionService/QuestionService.csproj" />
+    <Project Path="SearchService/SearchService.csproj" />
   </Folder>
   <Project Path="AspireCourse.AppHost/AspireCourse.AppHost.csproj" />
   <Project Path="AspireCourse.ServiceDefaults/AspireCourse.ServiceDefaults.csproj" />

@@ -1,26 +1,27 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using Contracts;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using QuestionService.Data;
 using QuestionService.DTOs;
 using QuestionService.Models;
+using QuestionService.Services;
 using System.Security.Claims;
+using Wolverine;
 
 namespace QuestionService.Controllers
 {
     [ApiController]
     [Route("[controller]")]
-    public class QuestionsController(QuestionDbContext db) : ControllerBase
+    public class QuestionsController(QuestionDbContext db, IMessageBus bus, TagService tagService) : ControllerBase
     {
         [Authorize]
         [HttpPost]
         public async Task<ActionResult<Question>> CreateQuestion(CreateQuestionDto dto)
         {
-            var validTags = await db.Tags.Where(x => dto.Tags.Contains(x.Slug)).ToListAsync();
-            var missing = dto.Tags.Except(validTags.Select(x => x.Slug).ToList()).ToList();
-            if (missing.Count != 0)
+            if (!await tagService.AreTagsValidAsync(dto.Tags))
             {
-                return BadRequest($"Invalid tags: {string.Join(", ", missing)}");
+                return BadRequest($"Invalid tags");
             }
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -40,6 +41,9 @@ namespace QuestionService.Controllers
             db.Questions.Add(question);
             await db.SaveChangesAsync();
 
+            await bus.PublishAsync(new QuestionCreated(
+                question.Id, question.Title, question.Content, question.CreatedAt, question.TagSlugs));
+
             return Created($"/questions/{question.Id}", question);
         }
 
@@ -58,7 +62,7 @@ namespace QuestionService.Controllers
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<Question>> Get(string id)
+        public async Task<ActionResult<Question>> GetQuestion(string id)
         {
             var question = await db.Questions.FindAsync(id);
 
@@ -77,13 +81,11 @@ namespace QuestionService.Controllers
 
         [Authorize]
         [HttpPut("{id}")]
-        public async Task<ActionResult<Question>> Update(string id, CreateQuestionDto dto)
+        public async Task<ActionResult<Question>> UpdateQuestion(string id, CreateQuestionDto dto)
         {
-            var validTags = await db.Tags.Where(x => dto.Tags.Contains(x.Slug)).ToListAsync();
-            var missing = dto.Tags.Except(validTags.Select(x => x.Slug).ToList()).ToList();
-            if (missing.Count != 0)
+            if (!await tagService.AreTagsValidAsync(dto.Tags))
             {
-                return BadRequest($"Invalid tags: {string.Join(", ", missing)}");
+                return BadRequest($"Invalid tags");
             }
 
             var question = await db.Questions.FindAsync(id);
@@ -105,12 +107,15 @@ namespace QuestionService.Controllers
             question.UpdatedAt = DateTime.UtcNow;
             await db.SaveChangesAsync();
 
+            await bus.PublishAsync(new QuestionUpdated(
+               question.Id, question.Title, question.Content, question.CreatedAt, question.TagSlugs));
+
             return NoContent();
         }
 
         [Authorize]
         [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(string id)
+        public async Task<IActionResult> DeleteQuestion(string id)
         {
             var question = await db.Questions.FindAsync(id);
 
@@ -127,6 +132,7 @@ namespace QuestionService.Controllers
 
             db.Questions.Remove(question);
             await db.SaveChangesAsync();
+            await bus.PublishAsync(new QuestionDeleted(question.Id));
 
             return NoContent();
         }

@@ -6,7 +6,7 @@ namespace SearchService.Data
     {
         public static async Task EnsureIndexExists(ITypesenseClient client)
         {
-            const string schemaName = "quetions";
+            const string schemaName = "questions";
 
             try
             {

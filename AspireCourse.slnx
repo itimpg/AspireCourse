@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/common/">
+    <Project Path="Contracts/Contracts.csproj" Id="d83ba7af-0226-45b0-a02d-712a18a0dd92" />
+  </Folder>
   <Folder Name="/services/">
     <Project Path="QuestionService/QuestionService.csproj" />
     <Project Path="SearchService/SearchService.csproj" />
